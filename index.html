@@ -388,12 +388,12 @@ function saveScore(name, pts) {
     const s = getScores();
     s.push({ name:(name.trim()||'Anonymous').slice(0,16), score:pts });
     s.sort((a,b)=>b.score-a.score);
-    const top = s.slice(0,10);
+    const top = s.slice(0,5);
     localStorage.setItem(LS_SCORES, JSON.stringify(top)); return top;
 }
 function isHighScore(pts) {
     if (pts <= 0) return false;
-    const s = getScores(); return s.length < 10 || pts > s[s.length-1].score;
+    const s = getScores(); return s.length < 5 || pts > s[s.length-1].score;
 }
 function renderLeaderboard(scores, newName) {
     const list = document.getElementById('lb-list'); list.innerHTML = '';
@@ -537,11 +537,61 @@ function startGame() {
 function doGameOver() {
     if (failTriggered) return;
     failTriggered = true;
+    playFallSound();
     gameState = STATES.GAME_OVER; gameOverT = 0; partnerFallT = 0;
+}
+
+/* ── Audio ─────────────────────────────────────────── */
+let _audioCtx = null;
+function getAudioCtx() {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return _audioCtx;
+}
+function playSuccessSound() {
+    const ctx = getAudioCtx();
+    // Two-tone ascending chime: clean, premium, like a payment confirm
+    [[880, 0.00, 0.08], [1318, 0.09, 0.18]].forEach(([freq, start, end]) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+        gain.gain.setValueAtTime(0, ctx.currentTime + start);
+        gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + end);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + end + 0.01);
+    });
+}
+function playFallSound() {
+    const ctx = getAudioCtx();
+    // Low thud + descending tone — comedic premium tumble
+    const thud = ctx.createOscillator();
+    const tGain = ctx.createGain();
+    thud.connect(tGain); tGain.connect(ctx.destination);
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(140, ctx.currentTime);
+    thud.frequency.exponentialRampToValueAtTime(48, ctx.currentTime + 0.18);
+    tGain.gain.setValueAtTime(0.32, ctx.currentTime);
+    tGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+    thud.start(ctx.currentTime); thud.stop(ctx.currentTime + 0.23);
+
+    const whoosh = ctx.createOscillator();
+    const wGain  = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    whoosh.connect(filter); filter.connect(wGain); wGain.connect(ctx.destination);
+    whoosh.type = 'sawtooth';
+    whoosh.frequency.setValueAtTime(320, ctx.currentTime + 0.05);
+    whoosh.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.38);
+    filter.type = 'lowpass'; filter.frequency.value = 600;
+    wGain.gain.setValueAtTime(0.12, ctx.currentTime + 0.05);
+    wGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.38);
+    whoosh.start(ctx.currentTime + 0.05); whoosh.stop(ctx.currentTime + 0.4);
 }
 
 function addScore() {
     score++; scoreVal.textContent = score;
+    playSuccessSound();
     const ramp = score < 20 ? 0.10 : 0.18;
     speed = Math.min(3.6 + score * ramp, 13.0);
 
