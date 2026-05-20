@@ -586,12 +586,9 @@ function doGameOver() {
 let _audioCtx = null;
 function getAudioCtx() {
     if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (_audioCtx.state === 'suspended') _audioCtx.resume();
     return _audioCtx;
 }
-function playSuccessSound() {
-    const ctx = getAudioCtx();
-    // Two-tone ascending chime: clean, premium, like a payment confirm
+function _scheduleSuccess(ctx) {
     [[880, 0.00, 0.08], [1318, 0.09, 0.18]].forEach(([freq, start, end]) => {
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -605,9 +602,7 @@ function playSuccessSound() {
         osc.stop(ctx.currentTime + end + 0.01);
     });
 }
-function playFallSound() {
-    const ctx = getAudioCtx();
-    // Low thud + descending tone — comedic premium tumble
+function _scheduleFall(ctx) {
     const thud = ctx.createOscillator();
     const tGain = ctx.createGain();
     thud.connect(tGain); tGain.connect(ctx.destination);
@@ -629,6 +624,16 @@ function playFallSound() {
     wGain.gain.setValueAtTime(0.12, ctx.currentTime + 0.05);
     wGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.38);
     whoosh.start(ctx.currentTime + 0.05); whoosh.stop(ctx.currentTime + 0.4);
+}
+function playSuccessSound() {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') { ctx.resume().then(() => _scheduleSuccess(ctx)); return; }
+    _scheduleSuccess(ctx);
+}
+function playFallSound() {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') { ctx.resume().then(() => _scheduleFall(ctx)); return; }
+    _scheduleFall(ctx);
 }
 
 function addScore() {
