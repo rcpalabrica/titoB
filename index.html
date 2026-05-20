@@ -584,29 +584,22 @@ function doGameOver() {
 
 /* ── Audio ─────────────────────────────────────────── */
 let _audioCtx = null;
-let _audioUnlocked = false;
 
-function _getCtx() {
-    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    return _audioCtx;
-}
-
-// Must be called directly inside a user-gesture handler (touch/click/keydown).
-// iOS Safari only unlocks audio when a silent buffer is played synchronously
-// inside the gesture — async callbacks don't count.
+// Called synchronously inside every user gesture (touch/key).
+// Playing a silent buffer is the only reliable way to unlock iOS audio.
+// No flag — we call this every gesture so iOS can't re-suspend it.
 function unlockAudio() {
-    if (_audioUnlocked) return;
-    const ctx = _getCtx();
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
     const buf = ctx.createBuffer(1, 1, 22050);
     const src = ctx.createBufferSource();
     src.buffer = buf; src.connect(ctx.destination); src.start(0);
     if (ctx.state === 'suspended') ctx.resume();
-    _audioUnlocked = true;
 }
 
 function playSuccessSound() {
-    if (!_audioUnlocked) return;
-    const ctx = _getCtx();
+    const ctx = _audioCtx;
+    if (!ctx || ctx.state !== 'running') return;
     [[880, 0.00, 0.08], [1318, 0.09, 0.18]].forEach(([freq, start, end]) => {
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -614,22 +607,22 @@ function playSuccessSound() {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
         gain.gain.setValueAtTime(0, ctx.currentTime + start);
-        gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + start + 0.012);
+        gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + start + 0.012);
         gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + end);
         osc.start(ctx.currentTime + start);
         osc.stop(ctx.currentTime + end + 0.01);
     });
 }
 function playFallSound() {
-    if (!_audioUnlocked) return;
-    const ctx = _getCtx();
+    const ctx = _audioCtx;
+    if (!ctx || ctx.state !== 'running') return;
     const thud = ctx.createOscillator();
     const tGain = ctx.createGain();
     thud.connect(tGain); tGain.connect(ctx.destination);
     thud.type = 'sine';
     thud.frequency.setValueAtTime(140, ctx.currentTime);
     thud.frequency.exponentialRampToValueAtTime(48, ctx.currentTime + 0.18);
-    tGain.gain.setValueAtTime(0.32, ctx.currentTime);
+    tGain.gain.setValueAtTime(0.4, ctx.currentTime);
     tGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
     thud.start(ctx.currentTime); thud.stop(ctx.currentTime + 0.23);
 
@@ -641,7 +634,7 @@ function playFallSound() {
     whoosh.frequency.setValueAtTime(320, ctx.currentTime + 0.05);
     whoosh.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.38);
     filter.type = 'lowpass'; filter.frequency.value = 600;
-    wGain.gain.setValueAtTime(0.12, ctx.currentTime + 0.05);
+    wGain.gain.setValueAtTime(0.18, ctx.currentTime + 0.05);
     wGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.38);
     whoosh.start(ctx.currentTime + 0.05); whoosh.stop(ctx.currentTime + 0.4);
 }
