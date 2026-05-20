@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tito Boboy - Careful Steps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; overflow: hidden; font-family: 'Arial Black', Arial, sans-serif; }
+        canvas { display: block; }
+
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.72); z-index: 10;
+        }
+        #overlay h1 { color:#fff; font-size:3.2rem; letter-spacing:2px; text-shadow:4px 4px 0 #333; margin-bottom:.2rem; }
+        #overlay .subtitle { color:#ccc; font-size:1.1rem; font-weight:normal; letter-spacing:4px; margin-bottom:2.5rem; font-family:Arial,sans-serif; }
+        #overlay .prompt { color:#fff; font-size:1.5rem; animation:pulse 1.1s ease-in-out infinite; }
+        #overlay .instructions { color:#ccc; font-size:.95rem; margin-top:1.8rem; text-align:center; line-height:2; font-family:Arial,sans-serif; font-weight:normal; }
+        .red  { color:#ff5555; font-weight:bold; }
+        .blue { color:#55aaff; font-weight:bold; }
+
+        #score-ui {
+            position:fixed; top:20px; left:50%; transform:translateX(-50%);
+            color:#fff; font-size:2rem; text-shadow:2px 2px 0 #333;
+            z-index:5; display:none; pointer-events:none;
+        }
+
+        /* ── Game Over / Leaderboard Panel ─────────────────── */
+        #gameover-panel {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5; display: none; pointer-events: auto;
+            background: rgba(10,10,20,0.92);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 14px;
+            padding: 22px 28px 18px;
+            min-width: 290px; max-width: 360px;
+            text-align: center;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+        }
+        .go-title  { color:#ff4444; font-size:2.4rem; text-shadow:3px 3px 0 #800; line-height:1; }
+        .go-score  { color:#fff; font-size:1.2rem; margin:.3rem 0 .9rem; }
+
+        #name-row  { display:none; margin-bottom:.9rem; }
+        .name-label { color:#ffd700; font-size:.85rem; font-family:Arial,sans-serif; font-weight:normal; margin-bottom:.45rem; }
+        .name-input-row { display:flex; gap:8px; justify-content:center; }
+        #player-name {
+            flex:1; max-width:160px;
+            padding:6px 10px; border:2px solid #ffd700; border-radius:6px;
+            background:rgba(255,255,255,0.07); color:#fff; font-size:.9rem; outline:none;
+        }
+        #player-name::placeholder { color:#888; }
+        #name-btn {
+            padding:6px 14px; background:#ffd700; color:#000; border:none; border-radius:6px;
+            cursor:pointer; font-weight:bold; font-size:.85rem; font-family:Arial,sans-serif;
+        }
+        #name-btn:hover { background:#ffe86e; }
+
+        .lb-title  { color:#ffd700; font-size:.78rem; letter-spacing:4px; margin:.6rem 0 .35rem; font-family:Arial,sans-serif; }
+        #lb-list   { list-style:decimal; text-align:left; padding-left:22px; margin:0; }
+        #lb-list li { color:#bbb; font-size:.82rem; font-weight:normal; font-family:Arial,sans-serif; line-height:1.75; }
+        #lb-list li.lb-gold   { color:#ffd700; }
+        #lb-list li.lb-silver { color:#c0c0c0; }
+        #lb-list li.lb-bronze { color:#cd7f32; }
+        #lb-list li.lb-new    { color:#7fffb0; font-weight:bold; }
+
+        .go-divider { border:none; border-top:1px solid rgba(255,255,255,0.1); margin:.7rem 0; }
+        .go-prompt  { color:#888; font-size:.82rem; margin-top:.7rem; font-family:Arial,sans-serif; font-weight:normal; animation:pulse 1.1s ease-in-out infinite; }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <h1>TITO BOBOY</h1>
+    <div class="subtitle">CAREFUL STEPS</div>
+    <div class="prompt">Press SPACEBAR to Start</div>
+    <div class="instructions">
+        <span class="red">RED carpet</span> = DANGER &rarr; Press Spacebar to dodge<br>
+        <span class="blue">BLUE carpet</span> = SAFE &rarr; Don't press anything<br>
+        Wrong call and your partner goes down!
+    </div>
+</div>
+
+<div id="score-ui">Score: <span id="score-val">0</span></div>
+
+<div id="gameover-panel">
+    <div class="go-title">OOPS!</div>
+    <div class="go-score">Score: <span id="final-score">0</span></div>
+
+    <div id="name-row">
+        <div class="name-label">&#127881; New High Score! Enter your name:</div>
+        <div class="name-input-row">
+            <input type="text" id="player-name" maxlength="16" placeholder="Your name" autocomplete="off">
+            <button id="name-btn">Save</button>
+        </div>
+    </div>
+
+    <hr class="go-divider">
+    <div class="lb-title">TOP 10</div>
+    <ol id="lb-list"></ol>
+    <div class="go-prompt">Press SPACEBAR to play again</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────
+const STATES = { MENU: 0, PLAYING: 1, GAME_OVER: 2 };
+
+const CARPET_W      = 2.6;
+const CARPET_D      = 1.0;
+const CARPET_H      = 0.2;
+const NUM_CARPETS   = 16;
+const DESPAWN_Z     = 16;
+
+// Characters walk side-by-side, guide just barely ahead in z.
+// Close enough that arms naturally bridge the gap.
+const CHAR_X_GUIDE   = -0.45;
+const CHAR_Z_GUIDE   = 3.05;
+const CHAR_X_PARTNER =  0.45;
+const CHAR_Z_PARTNER =  3.35;
+const DECISION_Z     = (CHAR_Z_GUIDE + CHAR_Z_PARTNER) / 2;  // 3.2
+const FLASH_DIST     = 3.8;
+const DECISION_HALF  = 0.55;
+const SPAWN_START_Z  = DECISION_Z - FLASH_DIST - 0.4;  // -1.0
+
+// Holding-arm rotations (calculated so arm tips meet at ~(0, 0.50, DECISION_Z))
+const HOLD_GUIDE_RX = -0.25;   // guide's armR: tip swings toward partner (+z)
+const HOLD_GUIDE_RZ =  0.50;   // tip swings inward (+x toward partner)
+const HOLD_PART_RX  =  0.25;   // partner's armL: tip swings toward guide (-z)
+const HOLD_PART_RZ  = -0.50;   // tip swings inward (-x toward guide)
+
+const C_DEFAULT = 0x888888;
+const C_SAFE    = 0x3399ff;
+const C_DANGER  = 0xff3333;
+const C_CORRECT = 0x44ff99;
+const C_WRONG   = 0xff8800;
+
+// Camera
+const CAM_DEFAULT_POS  = new THREE.Vector3(0, 11, 14);
+const CAM_DEFAULT_LOOK = new THREE.Vector3(0, 0, 2);
+// Focus on fallen partner's face (rotation.x = +PI/2 → face points up at z≈4.5)
+const CAM_FOCUS_POS    = new THREE.Vector3(0.45, 3.2, 5.8);
+const CAM_FOCUS_LOOK   = new THREE.Vector3(0.45, 0.1,  4.5);
+
+// ─────────────────────────────────────────────
+//  THREE.JS SETUP
+// ─────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7ec8e3);
+scene.fog = new THREE.Fog(0x7ec8e3, 22, 42);
+
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.copy(CAM_DEFAULT_POS);
+
+const camLookAt = new THREE.Vector3().copy(CAM_DEFAULT_LOOK);
+camera.lookAt(camLookAt);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const sun = new THREE.DirectionalLight(0xfff8e8, 1.1);
+sun.position.set(6, 16, 8); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left:-16, right:16, top:16, bottom:-16, near:0.5, far:60 });
+scene.add(sun);
+
+// ─────────────────────────────────────────────
+//  ENVIRONMENT
+// ─────────────────────────────────────────────
+function makeMesh(geo, color, cast=false, receive=true) {
+    const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
+    m.castShadow = cast; m.receiveShadow = receive; return m;
+}
+
+const pathBase = makeMesh(new THREE.PlaneGeometry(CARPET_W+0.3, 70), 0x9e8060);
+pathBase.rotation.x = -Math.PI/2; pathBase.position.y = -0.01; scene.add(pathBase);
+
+for (const sx of [-4.5, 4.5]) {
+    const g = makeMesh(new THREE.PlaneGeometry(5, 70), 0x4a7c3f);
+    g.rotation.x = -Math.PI/2; g.position.set(sx, -0.02, 0); scene.add(g);
+}
+for (let z = -18; z < 16; z += 4) {
+    for (const sx of [-3.2, 3.2]) {
+        const bh = 0.28 + Math.random() * 0.28;
+        const b = makeMesh(new THREE.BoxGeometry(0.5, bh, 0.5), 0x3a6e2a, true);
+        b.position.set(sx, bh/2, z + (Math.random()-0.5)); scene.add(b);
+    }
+}
+
+// ─────────────────────────────────────────────
+//  CHARACTER BUILDER
+// ─────────────────────────────────────────────
+function vbox(w, h, d, color) {
+    return makeMesh(new THREE.BoxGeometry(w, h, d), color, true, true);
+}
+
+function buildCharacter(bodyColor, skinColor, nonchalant=false) {
+    const g = new THREE.Group();
+
+    const torso = vbox(0.56, 0.58, 0.38, bodyColor); torso.position.y = 0.72; g.add(torso);
+    const head  = vbox(0.48, 0.46, 0.46, skinColor);  head.position.y  = 1.22; g.add(head);
+
+    const eyeM = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    for (const ex of [-0.11, 0.11]) {
+        const eye = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.04), eyeM);
+        eye.position.set(ex, 1.27, 0.24); g.add(eye);
+    }
+
+    const mouthM = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+    if (nonchalant) {
+        const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.04, 0.04), mouthM);
+        mouth.position.set(0, 1.12, 0.24); g.add(mouth);
+    } else {
+        for (const [ex, rz] of [[-0.05, 0.3], [0.05, -0.3]]) {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.04, 0.04), mouthM);
+            m.position.set(ex, 1.115, 0.24); m.rotation.z = rz; g.add(m);
+        }
+    }
+
+    const legL = vbox(0.22, 0.44, 0.26, bodyColor); legL.position.set(-0.15, 0.22, 0); g.add(legL);
+    const legR = vbox(0.22, 0.44, 0.26, bodyColor); legR.position.set( 0.15, 0.22, 0); g.add(legR);
+
+    // Arms — each arm has a small hand block at its tip
+    function makeArm(ox) {
+        const arm  = vbox(0.19, 0.46, 0.22, bodyColor); arm.position.set(ox, 0.68, 0);
+        // Hand at the bottom tip of the arm (rotates with the arm automatically)
+        const hand = vbox(0.22, 0.16, 0.22, skinColor); hand.position.y = -0.31;
+        arm.add(hand);
+        return arm;
+    }
+    const armL = makeArm(-0.38); g.add(armL);
+    const armR = makeArm( 0.38); g.add(armR);
+
+    g.torso = torso; g.head = head;
+    g.legL = legL; g.legR = legR;
+    g.armL = armL; g.armR = armR;
+    return g;
+}
+
+const charGuide   = buildCharacter(0x2e8b2e, 0x66cc55, false);
+const charPartner = buildCharacter(0xd4700a, 0xf5a030, true);
+charGuide.position.set(CHAR_X_GUIDE,   0, CHAR_Z_GUIDE);
+charPartner.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
+scene.add(charGuide);
+scene.add(charPartner);
+
+// ─────────────────────────────────────────────
+//  CARPET SYSTEM
+// ─────────────────────────────────────────────
+let carpets = [];
+
+function freshData() {
+    return { isSafe: Math.random() < 0.5, state: 'approach', flashT: 0, decided: false };
+}
+
+function buildCarpetMesh(z) {
+    const g = new THREE.Group();
+    const base = vbox(CARPET_W, CARPET_H, CARPET_D, C_DEFAULT); base.position.y = CARPET_H/2; g.add(base);
+    const border = makeMesh(new THREE.BoxGeometry(CARPET_W+0.08, CARPET_H*0.28, CARPET_D+0.08), 0x444444);
+    border.position.y = CARPET_H*0.12; g.add(border);
+    g.position.z = z; g.colorMesh = base; scene.add(g); return g;
+}
+
+function initCarpets() {
+    carpets.forEach(c => scene.remove(c.mesh)); carpets = [];
+    for (let i = 0; i < NUM_CARPETS; i++)
+        carpets.push({ mesh: buildCarpetMesh(SPAWN_START_Z - i * 2.2), ...freshData() });
+}
+
+function recycleCarpet(c) {
+    if (activeCarpet === c) activeCarpet = null;
+    let minZ = Infinity;
+    carpets.forEach(o => { if (o.mesh.position.z < minZ) minZ = o.mesh.position.z; });
+    const gap = 0.9 + Math.random() * 1.8;
+    c.mesh.position.z = minZ - (CARPET_D + gap);
+    Object.assign(c, freshData());
+    c.mesh.colorMesh.material.color.setHex(C_DEFAULT);
+}
+
+// ─────────────────────────────────────────────
+//  LEADERBOARD  (localStorage)
+// ─────────────────────────────────────────────
+const LS_KEY = 'titoboboy_scores';
+
+function getScores() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+}
+
+function saveScore(name, pts) {
+    const scores = getScores();
+    scores.push({ name: (name.trim() || 'Anonymous').slice(0, 16), score: pts });
+    scores.sort((a, b) => b.score - a.score);
+    const top = scores.slice(0, 10);
+    localStorage.setItem(LS_KEY, JSON.stringify(top));
+    return top;
+}
+
+function isHighScore(pts) {
+    if (pts <= 0) return false;
+    const scores = getScores();
+    return scores.length < 10 || pts > scores[scores.length - 1].score;
+}
+
+function renderLeaderboard(scores, newName) {
+    const list = document.getElementById('lb-list');
+    list.innerHTML = '';
+    if (!scores.length) {
+        const li = document.createElement('li');
+        li.textContent = 'No scores yet — be the first!';
+        li.style.color = '#666'; list.appendChild(li); return;
+    }
+    scores.forEach((s, i) => {
+        const li = document.createElement('li');
+        li.textContent = `${s.name}  —  ${s.score}`;
+        if      (i === 0) li.classList.add('lb-gold');
+        else if (i === 1) li.classList.add('lb-silver');
+        else if (i === 2) li.classList.add('lb-bronze');
+        if (newName && s.name === newName && !li._marked) {
+            li.classList.add('lb-new'); li._marked = true;
+        }
+        list.appendChild(li);
+    });
+}
+
+// ─────────────────────────────────────────────
+//  GAME STATE
+// ─────────────────────────────────────────────
+let gameState     = STATES.MENU;
+let score         = 0;
+let speed         = 3.6;
+let totalTime     = 0;
+let gameOverT     = 0;
+let partnerFallT  = 0;
+let failTriggered = false;
+let spaceDown     = false;
+let spaceConsumed = false;
+let activeCarpet  = null;
+
+const clock       = new THREE.Clock();
+const overlayEl   = document.getElementById('overlay');
+const scoreUI     = document.getElementById('score-ui');
+const scoreVal    = document.getElementById('score-val');
+const goPanel     = document.getElementById('gameover-panel');
+const finalScoreEl= document.getElementById('final-score');
+const nameRow     = document.getElementById('name-row');
+const nameInput   = document.getElementById('player-name');
+const nameBtn     = document.getElementById('name-btn');
+
+function showGameOverPanel() {
+    finalScoreEl.textContent = score;
+    goPanel.style.display    = 'block';
+    scoreUI.style.display    = 'none';
+
+    if (isHighScore(score)) {
+        nameRow.style.display = 'block';
+        nameInput.value = '';
+        renderLeaderboard(getScores(), null);
+        setTimeout(() => nameInput.focus(), 50);
+    } else {
+        nameRow.style.display = 'none';
+        renderLeaderboard(getScores(), null);
+    }
+}
+
+nameBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim() || 'Anonymous';
+    const top  = saveScore(name, score);
+    nameRow.style.display = 'none';
+    renderLeaderboard(top, name);
+});
+
+nameInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') nameBtn.click();
+    e.stopPropagation();  // prevent space/enter from reaching the game
+});
+
+function resetCharacters() {
+    charGuide.rotation.set(0, 0, 0);
+    charGuide.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
+    for (const k of ['legL','legR','armL','armR']) charGuide[k].rotation.set(0,0,0);
+
+    charPartner.rotation.set(0, 0, 0);
+    charPartner.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
+    for (const k of ['legL','legR','armL','armR']) charPartner[k].rotation.set(0,0,0);
+}
+
+function startGame() {
+    gameState     = STATES.PLAYING;
+    score         = 0; speed = 3.6; totalTime = 0;
+    gameOverT     = 0; partnerFallT = 0;
+    failTriggered = false; spaceDown = false; spaceConsumed = false;
+    activeCarpet  = null;
+
+    scoreVal.textContent     = '0';
+    overlayEl.style.display  = 'none';
+    scoreUI.style.display    = 'block';
+    goPanel.style.display    = 'none';
+
+    resetCharacters();
+    camera.position.copy(CAM_DEFAULT_POS);
+    camLookAt.copy(CAM_DEFAULT_LOOK);
+    camera.lookAt(camLookAt);
+
+    initCarpets();
+    clock.getDelta();
+}
+
+function doGameOver() {
+    if (failTriggered) return;
+    failTriggered = true;
+    gameState = STATES.GAME_OVER; gameOverT = 0; partnerFallT = 0;
+}
+
+function addScore() {
+    score++; scoreVal.textContent = score;
+    const ramp = score < 20 ? 0.10 : 0.18;
+    speed = Math.min(3.6 + score * ramp, 13.0);
+}
+
+// ─────────────────────────────────────────────
+//  INPUT
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    if (document.activeElement === nameInput) return;  // typing name
+    if (gameState === STATES.MENU) { startGame(); return; }
+    if (gameState === STATES.GAME_OVER) {
+        // Don't restart during the fall animation — wait until the panel is visible
+        if (goPanel.style.display === 'none') return;
+        startGame(); return;
+    }
+    if (gameState === STATES.PLAYING && !spaceConsumed) { spaceDown = true; spaceConsumed = true; }
+});
+document.addEventListener('keyup', e => { if (e.code === 'Space') spaceConsumed = false; });
+
+// ─────────────────────────────────────────────
+//  ANIMATION HELPERS
+// ─────────────────────────────────────────────
+function lerp(a,b,t){ return a+(b-a)*t; }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function easeInCubic(t){ return t*t*t; }
+function easeOutCubic(t){ const u=1-t; return 1-u*u*u; }
+
+function animWalk(ch, t, phase) {
+    ch.position.y = Math.sin(t*9+phase)*0.055;
+    ch.legL.rotation.x = Math.sin(t*9+phase)*0.46;
+    ch.legR.rotation.x = Math.sin(t*9+phase+Math.PI)*0.46;
+    // Only swing the FREE arm; holding arm handled separately
+    ch.armL.rotation.x = Math.sin(t*9+phase+Math.PI)*0.32;
+    ch.armR.rotation.x = Math.sin(t*9+phase)*0.32;
+    ch.armL.rotation.z = 0; ch.armR.rotation.z = 0;
+}
+
+function applyHoldingPose(t) {
+    // Guide's right arm holds partner's left — they meet at (0, ~0.5, DECISION_Z)
+    charGuide.armR.rotation.set(
+        HOLD_GUIDE_RX + Math.sin(t*9)*0.04, 0, HOLD_GUIDE_RZ
+    );
+    charPartner.armL.rotation.set(
+        HOLD_PART_RX + Math.sin(t*9+Math.PI)*0.04, 0, HOLD_PART_RZ
+    );
+}
+
+// ─────────────────────────────────────────────
+//  PARTNER FALL
+//  rotation.x → positive = falls toward camera (face points up at rest).
+//  position.y → +0.18 so body rests on carpet surface, not through it.
+// ─────────────────────────────────────────────
+function animPartnerFall(t) {
+    if (t < 0.18) {
+        const p = easeOutCubic(t/0.18);
+        charPartner.rotation.x = lerp(0, 0.04, p);
+        charPartner.position.y = 0; charPartner.position.z = CHAR_Z_PARTNER;
+        charPartner.armR.rotation.z = 0; charPartner.armL.rotation.z = 0;
+
+    } else if (t < 0.75) {
+        const p  = clamp((t-0.18)/0.57, 0, 1);
+        const ep = easeInCubic(p);
+        charPartner.rotation.x   = lerp(0.04, 1.55, ep);
+        charPartner.position.y   = lerp(0, 0.18, ep);
+        charPartner.position.z   = lerp(CHAR_Z_PARTNER, CHAR_Z_PARTNER+0.22, ep);
+        charPartner.armL.rotation.z = lerp(HOLD_PART_RZ, -0.7, ep);
+        charPartner.armR.rotation.z = lerp(0, 0.7, ep);
+        charPartner.armL.rotation.x = lerp(HOLD_PART_RX, 0.2, ep);
+        charPartner.armR.rotation.x = lerp(0, 0.2, ep);
+        charPartner.legL.rotation.x = lerp(0, -0.15, ep);
+        charPartner.legR.rotation.x = lerp(0, -0.15, ep);
+
+    } else if (t < 1.05) {
+        const p = (t-0.75)/0.30;
+        const bounce = Math.sin(p*Math.PI)*0.06*Math.exp(-p*1.5);
+        charPartner.rotation.x   = 1.55 - bounce*0.1;
+        charPartner.position.y   = 0.18 + bounce;
+        charPartner.position.z   = CHAR_Z_PARTNER + 0.22;
+        charPartner.armL.rotation.z = -0.7;
+        charPartner.armR.rotation.z =  0.7;
+
+    } else {
+        charPartner.rotation.x   = 1.55;
+        charPartner.position.y   = 0.18;
+        charPartner.position.z   = CHAR_Z_PARTNER + 0.22;
+        charPartner.armL.rotation.z = -0.7;
+        charPartner.armR.rotation.z =  0.7;
+        charPartner.armL.rotation.x =  0.2;
+        charPartner.armR.rotation.x =  0.2;
+        charPartner.legL.rotation.x = -0.15;
+        charPartner.legR.rotation.x = -0.15;
+    }
+}
+
+function animGuideReaction(t) {
+    const ep = easeOutCubic(clamp(t/0.45, 0, 1));
+    charGuide.rotation.y      = lerp(0, -0.6, ep);
+    charGuide.position.y      = lerp(charGuide.position.y, 0, 0.15);
+    charGuide.armR.rotation.x = lerp(0, -0.55, ep);
+    charGuide.armR.rotation.z = lerp(HOLD_GUIDE_RZ, -0.35, ep);
+    charGuide.legL.rotation.x = 0; charGuide.legR.rotation.x = 0;
+    charGuide.armL.rotation.x = 0; charGuide.armL.rotation.z = 0;
+}
+
+// ─────────────────────────────────────────────
+//  UPDATE
+// ─────────────────────────────────────────────
+function update(dt) {
+    totalTime += dt;
+
+    if (gameState === STATES.PLAYING) {
+        animWalk(charGuide,   totalTime, 0);
+        animWalk(charPartner, totalTime, Math.PI);
+        applyHoldingPose(totalTime);   // override the holding arms after animWalk
+
+        for (const c of carpets) {
+            c.mesh.position.z += speed * dt;
+            const z = c.mesh.position.z;
+
+            if (c.state === 'approach' && z >= DECISION_Z-FLASH_DIST && z < DECISION_Z-DECISION_HALF) {
+                c.state = 'flash'; c.flashT = 0;
+            }
+            if (c.state === 'flash') {
+                c.flashT += dt;
+                const on = Math.sin(c.flashT*18) > 0;
+                c.mesh.colorMesh.material.color.setHex(on ? (c.isSafe ? C_SAFE : C_DANGER) : C_DEFAULT);
+            }
+            if (c.state === 'flash' && Math.abs(z-DECISION_Z) < DECISION_HALF) {
+                c.state = 'decision'; activeCarpet = c;
+            }
+            if (c.state === 'decision' && z > DECISION_Z+DECISION_HALF) {
+                c.state = 'resolved'; c.decided = true;
+                if (activeCarpet === c) activeCarpet = null;
+                if (!c.isSafe) { c.mesh.colorMesh.material.color.setHex(C_DANGER);  doGameOver(); }
+                else           { c.mesh.colorMesh.material.color.setHex(C_CORRECT); addScore(); }
+            }
+            if (z > DESPAWN_Z) recycleCarpet(c);
+        }
+
+        if (spaceDown) {
+            spaceDown = false;
+            if (activeCarpet && activeCarpet.state === 'decision' && !activeCarpet.decided) {
+                const c = activeCarpet; c.decided = true; c.state = 'resolved'; activeCarpet = null;
+                if (!c.isSafe) { c.mesh.colorMesh.material.color.setHex(C_CORRECT); addScore(); }
+                else           { c.mesh.colorMesh.material.color.setHex(C_WRONG);   doGameOver(); }
+            }
+        }
+    }
+
+    if (gameState === STATES.GAME_OVER) {
+        gameOverT    += dt; partnerFallT += dt;
+        const slow = Math.max(0, 1 - partnerFallT * 2.5);
+        for (const c of carpets) c.mesh.position.z += speed * dt * slow;
+
+        animPartnerFall(partnerFallT);
+        animGuideReaction(partnerFallT);
+
+        // Camera dollies to partner's face after they land
+        const cp = clamp((gameOverT - 0.75) / 1.45, 0, 1);
+        camera.position.lerpVectors(CAM_DEFAULT_POS, CAM_FOCUS_POS, easeOutCubic(cp));
+        camLookAt.lerpVectors(CAM_DEFAULT_LOOK, CAM_FOCUS_LOOK, easeOutCubic(cp));
+        camera.lookAt(camLookAt);
+
+        if (gameOverT > 2.2 && goPanel.style.display === 'none') {
+            showGameOverPanel();
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+//  RENDER LOOP
+// ─────────────────────────────────────────────
+function loop() {
+    requestAnimationFrame(loop);
+    update(Math.min(clock.getDelta(), 0.05));
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+initCarpets();
+loop();
+</script>
+</body>
+</html>
