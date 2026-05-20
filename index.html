@@ -584,11 +584,29 @@ function doGameOver() {
 
 /* ── Audio ─────────────────────────────────────────── */
 let _audioCtx = null;
-function getAudioCtx() {
+let _audioUnlocked = false;
+
+function _getCtx() {
     if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     return _audioCtx;
 }
-function _scheduleSuccess(ctx) {
+
+// Must be called directly inside a user-gesture handler (touch/click/keydown).
+// iOS Safari only unlocks audio when a silent buffer is played synchronously
+// inside the gesture — async callbacks don't count.
+function unlockAudio() {
+    if (_audioUnlocked) return;
+    const ctx = _getCtx();
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
+    if (ctx.state === 'suspended') ctx.resume();
+    _audioUnlocked = true;
+}
+
+function playSuccessSound() {
+    if (!_audioUnlocked) return;
+    const ctx = _getCtx();
     [[880, 0.00, 0.08], [1318, 0.09, 0.18]].forEach(([freq, start, end]) => {
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -602,7 +620,9 @@ function _scheduleSuccess(ctx) {
         osc.stop(ctx.currentTime + end + 0.01);
     });
 }
-function _scheduleFall(ctx) {
+function playFallSound() {
+    if (!_audioUnlocked) return;
+    const ctx = _getCtx();
     const thud = ctx.createOscillator();
     const tGain = ctx.createGain();
     thud.connect(tGain); tGain.connect(ctx.destination);
@@ -625,16 +645,6 @@ function _scheduleFall(ctx) {
     wGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.38);
     whoosh.start(ctx.currentTime + 0.05); whoosh.stop(ctx.currentTime + 0.4);
 }
-function playSuccessSound() {
-    const ctx = getAudioCtx();
-    if (ctx.state === 'suspended') { ctx.resume().then(() => _scheduleSuccess(ctx)); return; }
-    _scheduleSuccess(ctx);
-}
-function playFallSound() {
-    const ctx = getAudioCtx();
-    if (ctx.state === 'suspended') { ctx.resume().then(() => _scheduleFall(ctx)); return; }
-    _scheduleFall(ctx);
-}
 
 function addScore() {
     score++; scoreVal.textContent = score;
@@ -656,6 +666,7 @@ function addScore() {
 document.addEventListener('keydown', e => {
     if (e.code !== 'Space') return;
     e.preventDefault();
+    unlockAudio();
     if (document.activeElement === nameInput) return;
     if (gameState === STATES.MENU) { startGame(); return; }
     if (gameState === STATES.GAME_OVER) {
@@ -677,7 +688,9 @@ function handleTouchAction() {
 }
 document.addEventListener('touchstart', e => {
     if (e.target.closest('#gameover-panel') || e.target.closest('#skin-selector')) return;
-    e.preventDefault(); handleTouchAction();
+    e.preventDefault();
+    unlockAudio();
+    handleTouchAction();
 }, { passive:false });
 document.addEventListener('touchend', e => {
     if (e.target.closest('#gameover-panel')) return;
