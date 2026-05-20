@@ -260,11 +260,33 @@ for (const sx of [-4.5, 4.5]) {
     const g = makeMesh(new THREE.PlaneGeometry(5, 70), 0x4a7c3f);
     g.rotation.x = -Math.PI/2; g.position.set(sx, -0.02, 0); scene.add(g);
 }
-for (let z = -18; z < 16; z += 4) for (const sx of [-3.2, 3.2]) {
-    const bh = 0.28 + Math.random() * 0.28;
-    const b = makeMesh(new THREE.BoxGeometry(0.5, bh, 0.5), 0x3a6e2a, true);
-    b.position.set(sx, bh/2, z + (Math.random()-.5)); scene.add(b);
+// Side ornaments — created once, never removed; initOrnaments just resets z positions
+const sideOrns = [];
+const ORN_XS = [-3.2, 3.2];
+function initOrnaments() {
+    let i = 0;
+    for (let z = -18; z < 16; z += 4) {
+        for (const sx of ORN_XS) {
+            const newZ = z + (Math.random() - 0.5);
+            if (i < sideOrns.length) {
+                sideOrns[i].position.z = newZ;
+            } else {
+                const bh = 0.28 + Math.random() * 0.28;
+                const b = makeMesh(new THREE.BoxGeometry(0.5, bh, 0.5), 0x3a6e2a, true);
+                b.position.set(sx, bh / 2, newZ);
+                scene.add(b);
+                sideOrns.push(b);
+            }
+            i++;
+        }
+    }
 }
+function recycleOrnament(b) {
+    let minZ = Infinity;
+    sideOrns.forEach(o => { if (o.position.z < minZ) minZ = o.position.z; });
+    b.position.z = minZ - (3.5 + Math.random() * 1.5);
+}
+initOrnaments();
 
 // ─────────────────────────────────────────────
 //  CHARACTER BUILDER
@@ -572,7 +594,7 @@ function startGame() {
     camLookAt.copy(CAM_DEFAULT_LOOK);
     camera.lookAt(camLookAt);
 
-    initCarpets(); clock.getDelta();
+    initOrnaments(); initCarpets(); clock.getDelta();
 }
 
 function doGameOver() {
@@ -764,6 +786,11 @@ function update(dt) {
         animWalk(charPartner, totalTime, Math.PI);
         applyHoldingPose(totalTime);
 
+        for (const b of sideOrns) {
+            b.position.z += speed * dt;
+            if (b.position.z > DESPAWN_Z) recycleOrnament(b);
+        }
+
         for (const c of carpets) {
             c.mesh.position.z += speed * dt;
             const z = c.mesh.position.z;
@@ -799,6 +826,7 @@ function update(dt) {
         gameOverT+=dt; partnerFallT+=dt;
         const slow = Math.max(0, 1-partnerFallT*2.5);
         for (const c of carpets) c.mesh.position.z += speed*dt*slow;
+        for (const b of sideOrns) b.position.z += speed*dt*slow;
 
         animPartnerFall(partnerFallT);
         animGuideReaction(partnerFallT);
