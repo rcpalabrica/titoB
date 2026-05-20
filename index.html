@@ -262,31 +262,94 @@ for (const sx of [-4.5, 4.5]) {
 }
 // Side ornaments — created once, never removed; initOrnaments just resets z positions
 const sideOrns = [];
-const ORN_XS = [-3.2, 3.2];
+const ORN_COLORS = [0x2a5e1a, 0x3a6e2a, 0x4a7e35, 0x1e4a15, 0x336630, 0x5a8040];
+
+function randomOrnAttrs() {
+    return {
+        sx: 0.45 + Math.random() * 1.1,   // x scale (base w=0.5) → actual 0.22–0.77
+        sy: 0.22 + Math.random() * 0.75,  // y scale (base h=1.0) → actual 0.22–0.97
+        sz: 0.45 + Math.random() * 1.1,
+        ox: 2.5 + Math.random() * 1.9,   // distance from center path: 2.5–4.4
+    };
+}
+
+function placeOrnament(b, sideSign, z) {
+    const { sx, sy, sz, ox } = randomOrnAttrs();
+    b.scale.set(sx, sy, sz);
+    b.position.set(ox * sideSign, sy / 2, z);
+    b._side = sideSign;
+}
+
 function initOrnaments() {
     let i = 0;
-    for (let z = -18; z < 16; z += 4) {
-        for (const sx of ORN_XS) {
-            const newZ = z + (Math.random() - 0.5);
+    for (let row = 0; row < 10; row++) {
+        for (const sideSign of [-1, 1]) {
+            const newZ = -18 + row * 3.6 + (Math.random() - 0.5) * 2.0;
             if (i < sideOrns.length) {
-                sideOrns[i].position.z = newZ;
+                placeOrnament(sideOrns[i], sideSign, newZ);
             } else {
-                const bh = 0.28 + Math.random() * 0.28;
-                const b = makeMesh(new THREE.BoxGeometry(0.5, bh, 0.5), 0x3a6e2a, true);
-                b.position.set(sx, bh / 2, newZ);
+                const color = ORN_COLORS[Math.floor(Math.random() * ORN_COLORS.length)];
+                const b = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 1.0, 0.5),
+                    new THREE.MeshLambertMaterial({ color })
+                );
+                b.castShadow = true;
                 scene.add(b);
                 sideOrns.push(b);
+                placeOrnament(b, sideSign, newZ);
             }
             i++;
         }
     }
 }
+
 function recycleOrnament(b) {
     let minZ = Infinity;
     sideOrns.forEach(o => { if (o.position.z < minZ) minZ = o.position.z; });
-    b.position.z = minZ - (3.5 + Math.random() * 1.5);
+    placeOrnament(b, b._side, minZ - (2.5 + Math.random() * 3.5));
 }
 initOrnaments();
+
+// Ground texture pebbles / patches — scroll with the scene
+const groundPebbles = [];
+
+function initGroundPebbles() {
+    let i = 0;
+    for (let z = -34; z < 18; z += 0.7 + Math.random() * 1.0) {
+        const x = (Math.random() - 0.5) * 9.8;
+        const size  = 0.06 + Math.random() * 0.18;
+        const thick = 0.015 + Math.random() * 0.025;
+        const depth = size * (0.5 + Math.random() * 1.0);
+        const onPath = Math.abs(x) < (CARPET_W + 0.3) / 2 + 0.15;
+        const color = onPath
+            ? [0x7a5e40, 0x9a7652, 0xb08866, 0x6a4e30][Math.floor(Math.random() * 4)]
+            : [0x2e5e25, 0x3a6e2f, 0x4a7a38, 0x254a1e][Math.floor(Math.random() * 4)];
+
+        if (i < groundPebbles.length) {
+            groundPebbles[i].position.set(x, thick / 2, z);
+        } else {
+            const p = new THREE.Mesh(
+                new THREE.BoxGeometry(size, thick, depth),
+                new THREE.MeshLambertMaterial({ color })
+            );
+            p.receiveShadow = true;
+            p.rotation.y = Math.random() * Math.PI;
+            p.position.set(x, thick / 2, z);
+            scene.add(p);
+            groundPebbles.push(p);
+        }
+        i++;
+    }
+}
+
+function recyclePebble(p) {
+    let minZ = Infinity;
+    groundPebbles.forEach(o => { if (o.position.z < minZ) minZ = o.position.z; });
+    p.position.z = minZ - (0.6 + Math.random() * 1.2);
+    p.position.x = (Math.random() - 0.5) * 9.8;
+}
+
+initGroundPebbles();
 
 // ─────────────────────────────────────────────
 //  CHARACTER BUILDER
@@ -397,17 +460,26 @@ function buildCarpetMesh(z) {
     border.position.y = CARPET_H*.12; g.add(border);
     g.position.z = z; g.colorMesh = base; scene.add(g); return g;
 }
+function randCarpetGap() {
+    const r = Math.random();
+    if (r < 0.35) return 1.1 + Math.random() * 0.7;   // close:  1.1–1.8
+    if (r < 0.72) return 2.6 + Math.random() * 1.2;   // medium: 2.6–3.8
+    return 4.5 + Math.random() * 2.2;                  // far:    4.5–6.7
+}
+
 function initCarpets() {
     carpets.forEach(c => scene.remove(c.mesh)); carpets = [];
-    for (let i = 0; i < NUM_CARPETS; i++)
-        carpets.push({ mesh: buildCarpetMesh(SPAWN_START_Z - i * 2.2), ...freshData() });
+    let z = SPAWN_START_Z;
+    for (let i = 0; i < NUM_CARPETS; i++) {
+        carpets.push({ mesh: buildCarpetMesh(z), ...freshData() });
+        z -= CARPET_D + randCarpetGap();
+    }
 }
 function recycleCarpet(c) {
     if (activeCarpet === c) activeCarpet = null;
     let minZ = Infinity;
     carpets.forEach(o => { if (o.mesh.position.z < minZ) minZ = o.mesh.position.z; });
-    const gap = 0.9 + Math.random() * 1.8;
-    c.mesh.position.z = minZ - (CARPET_D + gap);
+    c.mesh.position.z = minZ - (CARPET_D + randCarpetGap());
     Object.assign(c, freshData());
     c.mesh.colorMesh.material.color.setHex(C_DEFAULT);
 }
@@ -594,7 +666,7 @@ function startGame() {
     camLookAt.copy(CAM_DEFAULT_LOOK);
     camera.lookAt(camLookAt);
 
-    initOrnaments(); initCarpets(); clock.getDelta();
+    initOrnaments(); initGroundPebbles(); initCarpets(); clock.getDelta();
 }
 
 function doGameOver() {
@@ -790,6 +862,10 @@ function update(dt) {
             b.position.z += speed * dt;
             if (b.position.z > DESPAWN_Z) recycleOrnament(b);
         }
+        for (const p of groundPebbles) {
+            p.position.z += speed * dt;
+            if (p.position.z > DESPAWN_Z) recyclePebble(p);
+        }
 
         for (const c of carpets) {
             c.mesh.position.z += speed * dt;
@@ -827,6 +903,7 @@ function update(dt) {
         const slow = Math.max(0, 1-partnerFallT*2.5);
         for (const c of carpets) c.mesh.position.z += speed*dt*slow;
         for (const b of sideOrns) b.position.z += speed*dt*slow;
+        for (const p of groundPebbles) p.position.z += speed*dt*slow;
 
         animPartnerFall(partnerFallT);
         animGuideReaction(partnerFallT);
