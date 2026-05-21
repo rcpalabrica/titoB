@@ -42,6 +42,14 @@
         .skin-icon { width: 28px; height: 28px; border-radius: 4px; margin: 0 auto 5px; border: 2px solid rgba(255,255,255,0.25); }
         .skin-name { color: #fff; font-size: .72rem; font-family: Arial, sans-serif; font-weight: normal; line-height: 1.35; }
         .skin-name small { color: #777; font-size: .62rem; display: block; }
+        .skin-row { margin-bottom: .55rem; }
+        .skin-row-label { color: #666; font-size: .60rem; letter-spacing: 3px; font-family: Arial, sans-serif; font-weight: normal; margin-bottom: .35rem; }
+
+        /* ── Copyright ───────────────────────────── */
+        .game-credit {
+            color: #444; font-size: .62rem; letter-spacing: 2px;
+            font-family: Arial, sans-serif; font-weight: normal; margin-top: 1.4rem;
+        }
 
         /* ── Score ───────────────────────────── */
         #score-ui {
@@ -136,10 +144,11 @@
     <h1>TITO BOBOY</h1>
     <div class="subtitle">CAREFUL STEPS</div>
 
-    <!-- Skin selectors — shown as skins are unlocked -->
+    <!-- Character skin selector — shown once any skin is unlocked -->
     <div id="skin-selector" style="display:none;">
-        <div id="guide-skin-row" style="display:none; margin-bottom:.75rem;">
-            <div class="skin-label">GUIDE SKIN</div>
+        <div class="skin-label">CHARACTER SKINS</div>
+        <div class="skin-row">
+            <div class="skin-row-label">GUIDE</div>
             <div class="skin-btns">
                 <div class="skin-btn active" id="btn-guide-default">
                     <div class="skin-icon" style="background:#2e8b2e;"></div>
@@ -151,8 +160,8 @@
                 </div>
             </div>
         </div>
-        <div id="partner-skin-row" style="display:none;">
-            <div class="skin-label">PARTNER SKIN</div>
+        <div class="skin-row">
+            <div class="skin-row-label">PARTNER</div>
             <div class="skin-btns">
                 <div class="skin-btn active" id="btn-default">
                     <div class="skin-icon" style="background:#d4700a;"></div>
@@ -181,6 +190,8 @@
         <div class="top3-title">TOP 3</div>
         <ol id="menu-top3-list"></ol>
     </div>
+
+    <div class="game-credit">&#169; 2026 Sparky &nbsp;&middot;&nbsp; All rights reserved.</div>
 </div>
 
 <div id="score-ui">Score: <span id="score-val">0</span></div>
@@ -672,25 +683,15 @@ function initSkinUI() {
     const spideyOk = isSpideyUnlocked();
     const sn0peOk  = isSn0peUnlocked();
     const woodyOk  = isWoodyUnlocked();
-    const anyUnlocked = spideyOk || sn0peOk || woodyOk;
 
-    const selector       = document.getElementById('skin-selector');
-    const guideSkinRow   = document.getElementById('guide-skin-row');
-    const partnerSkinRow = document.getElementById('partner-skin-row');
+    // Show the whole block once any skin is unlocked; both rows are always inside
+    document.getElementById('skin-selector').style.display = (spideyOk || sn0peOk || woodyOk) ? 'block' : 'none';
 
-    selector.style.display       = anyUnlocked    ? 'block' : 'none';
-    guideSkinRow.style.display   = sn0peOk        ? 'block' : 'none';
-    partnerSkinRow.style.display = (spideyOk || woodyOk) ? 'block' : 'none';
+    if (spideyOk) { document.getElementById('btn-spidey').classList.remove('locked'); document.getElementById('btn-spidey').querySelector('.skin-name').innerHTML = '&#129381; Spidey'; }
+    if (sn0peOk)  { document.getElementById('btn-snope').classList.remove('locked');  document.getElementById('btn-snope').querySelector('.skin-name').innerHTML  = 'Sn0pe'; }
+    if (woodyOk)  { document.getElementById('btn-woody').classList.remove('locked');  document.getElementById('btn-woody').querySelector('.skin-name').innerHTML  = 'Woody'; }
 
-    const spideyBtn = document.getElementById('btn-spidey');
-    const sn0peBtn  = document.getElementById('btn-snope');
-    const woodyBtn  = document.getElementById('btn-woody');
-
-    if (spideyOk) { spideyBtn.classList.remove('locked'); spideyBtn.querySelector('.skin-name').innerHTML = '&#129381; Spidey'; }
-    if (sn0peOk)  { sn0peBtn.classList.remove('locked');  sn0peBtn.querySelector('.skin-name').innerHTML  = 'Sn0pe'; }
-    if (woodyOk)  { woodyBtn.classList.remove('locked');  woodyBtn.querySelector('.skin-name').innerHTML  = 'Woody'; }
-
-    const savedGuide   = sn0peOk  ? getSavedGuideSkin()   : 'default';
+    const savedGuide   = sn0peOk ? getSavedGuideSkin() : 'default';
     const savedPartner = getSavedPartnerSkin();
     const validPartner = (savedPartner === 'spidey' && spideyOk) || (savedPartner === 'woody' && woodyOk)
                        ? savedPartner : 'default';
