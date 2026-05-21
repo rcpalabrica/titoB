@@ -158,6 +158,10 @@
                     <div class="skin-icon" style="background:#f5f5f5;"></div>
                     <div class="skin-name">Sn0pe<small>Unlock at 55</small></div>
                 </div>
+                <div class="skin-btn locked" id="btn-jollibee">
+                    <div class="skin-icon" style="background:linear-gradient(135deg,#cc0000 60%,#ffcc00 60%);"></div>
+                    <div class="skin-name">Jollibee<small>Unlock at 100</small></div>
+                </div>
             </div>
         </div>
         <div class="skin-row">
@@ -497,6 +501,56 @@ function buildSn0peCharacter() {
     return g;
 }
 
+// ── Jollibee skin (red uniform, big round face, chef hat, antennae, bow tie) ──
+function buildJollibeeCharacter() {
+    const g = new THREE.Group();
+    const RED = 0xcc0000, YELLOW = 0xffcc00, WHITE = 0xffffff;
+    const FACE = 0xffe0a0, BLACK = 0x111111, DARK_RED = 0x880000;
+
+    const torso = vbox(0.60, 0.58, 0.40, RED); torso.position.y = 0.72; g.add(torso);
+    const head  = vbox(0.54, 0.52, 0.52, FACE); head.position.y  = 1.25; g.add(head);
+
+    // Chef hat: yellow brim + white crown + red band
+    const hatBrim  = vbox(0.64, 0.06, 0.60, YELLOW); hatBrim.position.set(0, 1.55, 0); g.add(hatBrim);
+    const hatBand  = vbox(0.56, 0.08, 0.52, RED);    hatBand.position.set(0, 1.62, 0); g.add(hatBand);
+    const hatCrown = vbox(0.50, 0.26, 0.46, WHITE);  hatCrown.position.set(0, 1.77, 0); g.add(hatCrown);
+
+    // Antennae (two black sticks with yellow tips)
+    const antL  = vbox(0.04, 0.20, 0.04, BLACK);  antL.position.set(-0.18, 1.95, 0); g.add(antL);
+    const antR  = vbox(0.04, 0.20, 0.04, BLACK);  antR.position.set( 0.18, 1.95, 0); g.add(antR);
+    const tipL  = vbox(0.07, 0.07, 0.07, YELLOW); tipL.position.set(-0.18, 2.08, 0); g.add(tipL);
+    const tipR  = vbox(0.07, 0.07, 0.07, YELLOW); tipR.position.set( 0.18, 2.08, 0); g.add(tipR);
+
+    // Eyes (big, black)
+    const eyeM = new THREE.MeshLambertMaterial({ color: BLACK });
+    for (const ex of [-0.13, 0.13]) {
+        const eye = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, 0.04), eyeM);
+        eye.position.set(ex, 1.33, 0.27); g.add(eye);
+    }
+    // Big smile
+    const smileM = new THREE.MeshLambertMaterial({ color: DARK_RED });
+    const smile = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.04), smileM);
+    smile.position.set(0, 1.17, 0.27); g.add(smile);
+    const smileL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.10, 0.04), smileM);
+    smileL.position.set(-0.17, 1.20, 0.27); g.add(smileL);
+    const smileR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.10, 0.04), smileM);
+    smileR.position.set( 0.17, 1.20, 0.27); g.add(smileR);
+
+    // Bow tie (yellow, at neck)
+    const bowL = vbox(0.10, 0.10, 0.06, YELLOW); bowL.position.set(-0.10, 0.98, 0.22); g.add(bowL);
+    const bowR = vbox(0.10, 0.10, 0.06, YELLOW); bowR.position.set( 0.10, 0.98, 0.22); g.add(bowR);
+    const bowC = vbox(0.05, 0.06, 0.06, RED);    bowC.position.set(0,    0.98, 0.22); g.add(bowC);
+
+    const legL = vbox(0.22, 0.44, 0.26, RED); legL.position.set(-0.15, 0.22, 0); g.add(legL);
+    const legR = vbox(0.22, 0.44, 0.26, RED); legR.position.set( 0.15, 0.22, 0); g.add(legR);
+    const armL = makeArm(-0.40, RED, FACE); g.add(armL);
+    const armR = makeArm( 0.40, RED, FACE); g.add(armR);
+
+    g.torso = torso; g.head = head;
+    g.legL = legL; g.legR = legR; g.armL = armL; g.armR = armR;
+    return g;
+}
+
 // ── Woody skin (Woodstock-inspired: yellow bird with tuft + beak) ──
 function buildWoodyCharacter() {
     const g = new THREE.Group();
@@ -535,6 +589,7 @@ function buildWoodyCharacter() {
 // Build all character versions; only one guide + one partner visible at a time
 const charGuideDefault   = buildCharacter(0x2e8b2e, 0x66cc55, false);
 const charGuideSn0pe     = buildSn0peCharacter();
+const charGuideJollibee  = buildJollibeeCharacter();
 const charPartnerDefault = buildCharacter(0xd4700a, 0xf5a030, true);
 const charPartnerSpidey  = buildSpideyCharacter();
 const charPartnerWoody   = buildWoodyCharacter();
@@ -542,13 +597,15 @@ const charPartnerWoody   = buildWoodyCharacter();
 charGuideDefault.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
 charGuideSn0pe.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
 charGuideSn0pe.visible = false;
+charGuideJollibee.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
+charGuideJollibee.visible = false;
 charPartnerDefault.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
 charPartnerSpidey.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
 charPartnerSpidey.visible = false;
 charPartnerWoody.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
 charPartnerWoody.visible = false;
 
-scene.add(charGuideDefault); scene.add(charGuideSn0pe);
+scene.add(charGuideDefault); scene.add(charGuideSn0pe); scene.add(charGuideJollibee);
 scene.add(charPartnerDefault); scene.add(charPartnerSpidey); scene.add(charPartnerWoody);
 
 // Active references used by all animation/logic code
@@ -599,8 +656,9 @@ const LS_SCORES      = 'titoboboy_scores';
 const LS_SPIDEY      = 'titoboboy_spiderman'; // 'true' when unlocked
 const LS_SNOPE       = 'titoboboy_snope';     // 'true' when unlocked
 const LS_WOODY       = 'titoboboy_woody';     // 'true' when unlocked
+const LS_JOLLIBEE    = 'titoboboy_jollibee';  // 'true' when unlocked
 const LS_SKIN        = 'titoboboy_skin';      // 'default' | 'spidey' | 'woody'
-const LS_GUIDE_SKIN  = 'titoboboy_guide_skin'; // 'default' | 'snope'
+const LS_GUIDE_SKIN  = 'titoboboy_guide_skin'; // 'default' | 'snope' | 'jollibee'
 
 function getScores() { try { return JSON.parse(localStorage.getItem(LS_SCORES)||'[]'); } catch { return []; } }
 function saveScore(name, pts) {
@@ -633,32 +691,39 @@ function renderLeaderboard(scores, newName) {
 // ─────────────────────────────────────────────
 //  SKIN MANAGEMENT
 // ─────────────────────────────────────────────
-function isSpideyUnlocked() { return localStorage.getItem(LS_SPIDEY) === 'true'; }
-function isSn0peUnlocked()  { return localStorage.getItem(LS_SNOPE)  === 'true'; }
-function isWoodyUnlocked()  { return localStorage.getItem(LS_WOODY)  === 'true'; }
-function unlockSpidey() { localStorage.setItem(LS_SPIDEY, 'true'); }
-function unlockSn0pe()  { localStorage.setItem(LS_SNOPE,  'true'); }
-function unlockWoody()  { localStorage.setItem(LS_WOODY,  'true'); }
+function isSpideyUnlocked()   { return localStorage.getItem(LS_SPIDEY)   === 'true'; }
+function isSn0peUnlocked()    { return localStorage.getItem(LS_SNOPE)    === 'true'; }
+function isWoodyUnlocked()    { return localStorage.getItem(LS_WOODY)    === 'true'; }
+function isJollibeeUnlocked() { return localStorage.getItem(LS_JOLLIBEE) === 'true'; }
+function unlockSpidey()   { localStorage.setItem(LS_SPIDEY,   'true'); }
+function unlockSn0pe()    { localStorage.setItem(LS_SNOPE,    'true'); }
+function unlockWoody()    { localStorage.setItem(LS_WOODY,    'true'); }
+function unlockJollibee() { localStorage.setItem(LS_JOLLIBEE, 'true'); }
 
 function getSavedPartnerSkin() { return localStorage.getItem(LS_SKIN)       || 'default'; }
 function getSavedGuideSkin()   { return localStorage.getItem(LS_GUIDE_SKIN) || 'default'; }
 function savePartnerSkin(val)  { localStorage.setItem(LS_SKIN, val); }
 function saveGuideSkin(val)    { localStorage.setItem(LS_GUIDE_SKIN, val); }
 
-let guideSkin   = 'default'; // 'default' | 'snope'
+let guideSkin   = 'default'; // 'default' | 'snope' | 'jollibee'
 let partnerSkin = 'default'; // 'default' | 'spidey' | 'woody'
 
 function selectGuideSkin(skin) {
-    if (skin === 'snope' && !isSn0peUnlocked()) return;
+    if (skin === 'snope'    && !isSn0peUnlocked())    return;
+    if (skin === 'jollibee' && !isJollibeeUnlocked()) return;
     guideSkin = skin;
     saveGuideSkin(skin);
 
     document.getElementById('btn-guide-default').classList.toggle('active', skin === 'default');
-    document.getElementById('btn-snope').classList.toggle('active', skin === 'snope');
+    document.getElementById('btn-snope').classList.toggle('active',    skin === 'snope');
+    document.getElementById('btn-jollibee').classList.toggle('active', skin === 'jollibee');
 
-    charGuideDefault.visible = skin === 'default';
-    charGuideSn0pe.visible   = skin === 'snope';
-    charGuide = skin === 'snope' ? charGuideSn0pe : charGuideDefault;
+    charGuideDefault.visible  = skin === 'default';
+    charGuideSn0pe.visible    = skin === 'snope';
+    charGuideJollibee.visible = skin === 'jollibee';
+    charGuide = skin === 'snope'    ? charGuideSn0pe
+              : skin === 'jollibee' ? charGuideJollibee
+              :                      charGuideDefault;
 }
 
 function selectPartnerSkin(skin) {
@@ -680,23 +745,28 @@ function selectPartnerSkin(skin) {
 }
 
 function initSkinUI() {
-    const spideyOk = isSpideyUnlocked();
-    const sn0peOk  = isSn0peUnlocked();
-    const woodyOk  = isWoodyUnlocked();
+    const spideyOk   = isSpideyUnlocked();
+    const sn0peOk    = isSn0peUnlocked();
+    const woodyOk    = isWoodyUnlocked();
+    const jollibeeOk = isJollibeeUnlocked();
 
     // Show the whole block once any skin is unlocked; both rows are always inside
-    document.getElementById('skin-selector').style.display = (spideyOk || sn0peOk || woodyOk) ? 'block' : 'none';
+    document.getElementById('skin-selector').style.display = (spideyOk || sn0peOk || woodyOk || jollibeeOk) ? 'block' : 'none';
 
-    if (spideyOk) { document.getElementById('btn-spidey').classList.remove('locked'); document.getElementById('btn-spidey').querySelector('.skin-name').innerHTML = '&#129381; Spidey'; }
-    if (sn0peOk)  { document.getElementById('btn-snope').classList.remove('locked');  document.getElementById('btn-snope').querySelector('.skin-name').innerHTML  = 'Sn0pe'; }
-    if (woodyOk)  { document.getElementById('btn-woody').classList.remove('locked');  document.getElementById('btn-woody').querySelector('.skin-name').innerHTML  = 'Woody'; }
+    if (spideyOk)   { document.getElementById('btn-spidey').classList.remove('locked');   document.getElementById('btn-spidey').querySelector('.skin-name').innerHTML   = '&#129381; Spidey'; }
+    if (sn0peOk)    { document.getElementById('btn-snope').classList.remove('locked');    document.getElementById('btn-snope').querySelector('.skin-name').innerHTML    = 'Sn0pe'; }
+    if (woodyOk)    { document.getElementById('btn-woody').classList.remove('locked');    document.getElementById('btn-woody').querySelector('.skin-name').innerHTML    = 'Woody'; }
+    if (jollibeeOk) { document.getElementById('btn-jollibee').classList.remove('locked'); document.getElementById('btn-jollibee').querySelector('.skin-name').innerHTML = 'Jollibee'; }
 
-    const savedGuide   = sn0peOk ? getSavedGuideSkin() : 'default';
+    const savedGuide = getSavedGuideSkin();
+    const validGuide = (savedGuide === 'snope'    && sn0peOk)
+                    || (savedGuide === 'jollibee' && jollibeeOk)
+                     ? savedGuide : 'default';
     const savedPartner = getSavedPartnerSkin();
     const validPartner = (savedPartner === 'spidey' && spideyOk) || (savedPartner === 'woody' && woodyOk)
                        ? savedPartner : 'default';
 
-    selectGuideSkin(savedGuide);
+    selectGuideSkin(validGuide);
     selectPartnerSkin(validPartner);
 }
 
@@ -750,7 +820,8 @@ nameBtn.addEventListener('click', () => {
 nameInput.addEventListener('keydown', e => { if (e.key==='Enter') nameBtn.click(); e.stopPropagation(); });
 
 document.getElementById('btn-guide-default').addEventListener('click', () => selectGuideSkin('default'));
-document.getElementById('btn-snope').addEventListener('click',  () => selectGuideSkin('snope'));
+document.getElementById('btn-snope').addEventListener('click',    () => selectGuideSkin('snope'));
+document.getElementById('btn-jollibee').addEventListener('click', () => selectGuideSkin('jollibee'));
 document.getElementById('btn-default').addEventListener('click', () => selectPartnerSkin('default'));
 document.getElementById('btn-spidey').addEventListener('click', () => selectPartnerSkin('spidey'));
 document.getElementById('btn-woody').addEventListener('click',  () => selectPartnerSkin('woody'));
@@ -765,8 +836,9 @@ function resetCharacters() {
     for (const k of ['legL','legR','armL','armR']) charPartner[k].rotation.set(0,0,0);
 
     // hide inactive skins
-    charGuideDefault.visible = guideSkin === 'default';
-    charGuideSn0pe.visible   = guideSkin === 'snope';
+    charGuideDefault.visible  = guideSkin === 'default';
+    charGuideSn0pe.visible    = guideSkin === 'snope';
+    charGuideJollibee.visible = guideSkin === 'jollibee';
     charPartnerDefault.visible = partnerSkin === 'default';
     charPartnerSpidey.visible  = partnerSkin === 'spidey';
     charPartnerWoody.visible   = partnerSkin === 'woody';
@@ -811,9 +883,12 @@ function startGame() {
     tapBtn.style.display    = isMobile() ? 'block' : 'none';
 
     // Ensure correct skins are active for this run
-    charGuideDefault.visible = guideSkin === 'default';
-    charGuideSn0pe.visible   = guideSkin === 'snope';
-    charGuide = guideSkin === 'snope' ? charGuideSn0pe : charGuideDefault;
+    charGuideDefault.visible  = guideSkin === 'default';
+    charGuideSn0pe.visible    = guideSkin === 'snope';
+    charGuideJollibee.visible = guideSkin === 'jollibee';
+    charGuide = guideSkin === 'snope'    ? charGuideSn0pe
+              : guideSkin === 'jollibee' ? charGuideJollibee
+              :                           charGuideDefault;
 
     charPartnerDefault.visible = partnerSkin === 'default';
     charPartnerSpidey.visible  = partnerSkin === 'spidey';
@@ -914,6 +989,11 @@ function addScore() {
     if (score === 90 && !isWoodyUnlocked()) {
         unlockWoody(); initSkinUI();
         showUnlockNotif('WOODY SKIN UNLOCKED!', '#e07800', '#f5c800');
+    }
+    // Unlock Jollibee (guide) at score 100
+    if (score === 100 && !isJollibeeUnlocked()) {
+        unlockJollibee(); initSkinUI();
+        showUnlockNotif('JOLLIBEE SKIN UNLOCKED!', '#cc0000', '#ffcc00');
     }
 }
 
