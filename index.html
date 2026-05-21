@@ -929,7 +929,9 @@ function unlockAudio() {
 
 function playSuccessSound() {
     const ctx = _audioCtx;
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'closed') return;
     [[880, 0.00, 0.08], [1318, 0.09, 0.18]].forEach(([freq, start, end]) => {
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -945,7 +947,9 @@ function playSuccessSound() {
 }
 function playFallSound() {
     const ctx = _audioCtx;
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'closed') return;
     const thud = ctx.createOscillator();
     const tGain = ctx.createGain();
     thud.connect(tGain); tGain.connect(ctx.destination);
@@ -1059,37 +1063,37 @@ function applyHoldingPose(t) {
 function animPartnerFall(t) {
     if (t < 0.18) {
         const p = easeOutCubic(t/.18);
-        charPartner.rotation.x = lerp(0,.04,p);
+        charPartner.rotation.x = lerp(0,-.04,p);  // lean back slightly before falling
         charPartner.rotation.y = Math.PI;
         charPartner.position.y = 0; charPartner.position.z = CHAR_Z_PARTNER;
         charPartner.armR.rotation.z = 0; charPartner.armL.rotation.z = 0;
     } else if (t < 0.75) {
         const ep = easeInCubic(clamp((t-.18)/.57,0,1));
-        charPartner.rotation.x   = lerp(.04,1.55,ep);
-        charPartner.rotation.y   = lerp(Math.PI, 0, ep); // spins to face camera — shows face as falling
+        charPartner.rotation.x   = lerp(-.04,-1.55,ep); // fall backward → face ends up toward sky
+        charPartner.rotation.y   = lerp(Math.PI, 0, ep); // spin to face camera as falling
         charPartner.position.y   = lerp(0,.18,ep);
-        charPartner.position.z   = lerp(CHAR_Z_PARTNER,CHAR_Z_PARTNER+.22,ep);
-        charPartner.armR.rotation.z = lerp(-HOLD_PART_RZ, .7,ep);
-        charPartner.armL.rotation.z = lerp(0,-.7,ep);
+        charPartner.position.z   = lerp(CHAR_Z_PARTNER,CHAR_Z_PARTNER-.22,ep);
+        charPartner.armR.rotation.z = lerp(-HOLD_PART_RZ,-.7,ep); // spread arms outward
+        charPartner.armL.rotation.z = lerp(0,+.7,ep);
         charPartner.armR.rotation.x = lerp(HOLD_PART_RX,.2,ep);
         charPartner.armL.rotation.x = lerp(0,.2,ep);
-        charPartner.legL.rotation.x = lerp(0,-.15,ep);
-        charPartner.legR.rotation.x = lerp(0,-.15,ep);
+        charPartner.legL.rotation.x = lerp(0,+.15,ep);
+        charPartner.legR.rotation.x = lerp(0,+.15,ep);
     } else if (t < 1.05) {
         const p = (t-.75)/.30;
         const bounce = Math.sin(p*Math.PI)*.06*Math.exp(-p*1.5);
-        charPartner.rotation.x = 1.55-bounce*.1;
+        charPartner.rotation.x = -1.55+bounce*.1;
         charPartner.rotation.y = 0;
         charPartner.position.y = .18+bounce;
-        charPartner.position.z = CHAR_Z_PARTNER+.22;
-        charPartner.armR.rotation.z = .7; charPartner.armL.rotation.z = -.7;
+        charPartner.position.z = CHAR_Z_PARTNER-.22;
+        charPartner.armR.rotation.z = -.7; charPartner.armL.rotation.z = +.7;
     } else {
-        charPartner.rotation.x = 1.55; charPartner.rotation.y = 0;
+        charPartner.rotation.x = -1.55; charPartner.rotation.y = 0;
         charPartner.position.y = .18;
-        charPartner.position.z = CHAR_Z_PARTNER+.22;
-        charPartner.armR.rotation.z = .7;  charPartner.armL.rotation.z = -.7;
+        charPartner.position.z = CHAR_Z_PARTNER-.22;
+        charPartner.armR.rotation.z = -.7; charPartner.armL.rotation.z = +.7;
         charPartner.armR.rotation.x = .2;  charPartner.armL.rotation.x = .2;
-        charPartner.legL.rotation.x = -.15; charPartner.legR.rotation.x = -.15;
+        charPartner.legL.rotation.x = +.15; charPartner.legR.rotation.x = +.15;
     }
 }
 function animGuideReaction(t) {
