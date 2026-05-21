@@ -216,7 +216,7 @@
     </div>
 
     <hr class="go-divider">
-    <div class="lb-title">TOP 5</div>
+    <div class="lb-title">TOP 3</div>
     <ol id="lb-list"></ol>
     <div class="go-prompt">Tap / Press SPACEBAR to return to menu</div>
 </div>
@@ -607,12 +607,12 @@ function saveScore(name, pts) {
     const s = getScores();
     s.push({ name:(name.trim()||'Anonymous').slice(0,16), score:pts });
     s.sort((a,b)=>b.score-a.score);
-    const top = s.slice(0,5);
+    const top = s.slice(0,3);
     localStorage.setItem(LS_SCORES, JSON.stringify(top)); return top;
 }
 function isHighScore(pts) {
     if (pts <= 0) return false;
-    const s = getScores(); return s.length < 5 || pts > s[s.length-1].score;
+    const s = getScores(); return s.length < 3 || pts > s[s.length-1].score;
 }
 function renderLeaderboard(scores, newName) {
     const list = document.getElementById('lb-list'); list.innerHTML = '';
