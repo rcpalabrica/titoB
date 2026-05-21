@@ -594,15 +594,15 @@ const charPartnerDefault = buildCharacter(0xd4700a, 0xf5a030, true);
 const charPartnerSpidey  = buildSpideyCharacter();
 const charPartnerWoody   = buildWoodyCharacter();
 
-charGuideDefault.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
-charGuideSn0pe.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
+charGuideDefault.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);   charGuideDefault.rotation.y = Math.PI;
+charGuideSn0pe.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);     charGuideSn0pe.rotation.y = Math.PI;
 charGuideSn0pe.visible = false;
-charGuideJollibee.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
+charGuideJollibee.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);  charGuideJollibee.rotation.y = Math.PI;
 charGuideJollibee.visible = false;
-charPartnerDefault.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
-charPartnerSpidey.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
+charPartnerDefault.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER); charPartnerDefault.rotation.y = Math.PI;
+charPartnerSpidey.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);  charPartnerSpidey.rotation.y = Math.PI;
 charPartnerSpidey.visible = false;
-charPartnerWoody.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
+charPartnerWoody.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);   charPartnerWoody.rotation.y = Math.PI;
 charPartnerWoody.visible = false;
 
 scene.add(charGuideDefault); scene.add(charGuideSn0pe); scene.add(charGuideJollibee);
@@ -827,11 +827,11 @@ document.getElementById('btn-spidey').addEventListener('click', () => selectPart
 document.getElementById('btn-woody').addEventListener('click',  () => selectPartnerSkin('woody'));
 
 function resetCharacters() {
-    charGuide.rotation.set(0,0,0);
+    charGuide.rotation.set(0, Math.PI, 0);
     charGuide.position.set(CHAR_X_GUIDE, 0, CHAR_Z_GUIDE);
     for (const k of ['legL','legR','armL','armR']) charGuide[k].rotation.set(0,0,0);
 
-    charPartner.rotation.set(0,0,0);
+    charPartner.rotation.set(0, Math.PI, 0);
     charPartner.position.set(CHAR_X_PARTNER, 0, CHAR_Z_PARTNER);
     for (const k of ['legL','legR','armL','armR']) charPartner[k].rotation.set(0,0,0);
 
@@ -1051,50 +1051,57 @@ function animWalk(ch, t, phase) {
     ch.armL.rotation.z = 0; ch.armR.rotation.z = 0;
 }
 function applyHoldingPose(t) {
-    charGuide.armR.rotation.set(HOLD_GUIDE_RX + Math.sin(t*9)*.04, 0, HOLD_GUIDE_RZ);
-    charPartner.armL.rotation.set(HOLD_PART_RX + Math.sin(t*9+Math.PI)*.04, 0, HOLD_PART_RZ);
+    // With rotation.y=π, armL is guide's inner arm and armR is partner's inner arm
+    charGuide.armL.rotation.set(HOLD_GUIDE_RX + Math.sin(t*9)*.04, 0, -HOLD_GUIDE_RZ);
+    charPartner.armR.rotation.set(HOLD_PART_RX + Math.sin(t*9+Math.PI)*.04, 0, -HOLD_PART_RZ);
 }
 
 function animPartnerFall(t) {
     if (t < 0.18) {
         const p = easeOutCubic(t/.18);
         charPartner.rotation.x = lerp(0,.04,p);
+        charPartner.rotation.y = Math.PI;
         charPartner.position.y = 0; charPartner.position.z = CHAR_Z_PARTNER;
         charPartner.armR.rotation.z = 0; charPartner.armL.rotation.z = 0;
     } else if (t < 0.75) {
         const ep = easeInCubic(clamp((t-.18)/.57,0,1));
         charPartner.rotation.x   = lerp(.04,1.55,ep);
+        charPartner.rotation.y   = lerp(Math.PI, 0, ep); // spins to face camera — shows face as falling
         charPartner.position.y   = lerp(0,.18,ep);
         charPartner.position.z   = lerp(CHAR_Z_PARTNER,CHAR_Z_PARTNER+.22,ep);
-        charPartner.armL.rotation.z = lerp(HOLD_PART_RZ,-.7,ep);
-        charPartner.armR.rotation.z = lerp(0,.7,ep);
-        charPartner.armL.rotation.x = lerp(HOLD_PART_RX,.2,ep);
-        charPartner.armR.rotation.x = lerp(0,.2,ep);
+        charPartner.armR.rotation.z = lerp(-HOLD_PART_RZ, .7,ep);
+        charPartner.armL.rotation.z = lerp(0,-.7,ep);
+        charPartner.armR.rotation.x = lerp(HOLD_PART_RX,.2,ep);
+        charPartner.armL.rotation.x = lerp(0,.2,ep);
         charPartner.legL.rotation.x = lerp(0,-.15,ep);
         charPartner.legR.rotation.x = lerp(0,-.15,ep);
     } else if (t < 1.05) {
         const p = (t-.75)/.30;
         const bounce = Math.sin(p*Math.PI)*.06*Math.exp(-p*1.5);
         charPartner.rotation.x = 1.55-bounce*.1;
+        charPartner.rotation.y = 0;
         charPartner.position.y = .18+bounce;
         charPartner.position.z = CHAR_Z_PARTNER+.22;
-        charPartner.armL.rotation.z = -.7; charPartner.armR.rotation.z = .7;
+        charPartner.armR.rotation.z = .7; charPartner.armL.rotation.z = -.7;
     } else {
-        charPartner.rotation.x = 1.55; charPartner.position.y = .18;
+        charPartner.rotation.x = 1.55; charPartner.rotation.y = 0;
+        charPartner.position.y = .18;
         charPartner.position.z = CHAR_Z_PARTNER+.22;
-        charPartner.armL.rotation.z = -.7; charPartner.armR.rotation.z = .7;
-        charPartner.armL.rotation.x = .2;  charPartner.armR.rotation.x = .2;
+        charPartner.armR.rotation.z = .7;  charPartner.armL.rotation.z = -.7;
+        charPartner.armR.rotation.x = .2;  charPartner.armL.rotation.x = .2;
         charPartner.legL.rotation.x = -.15; charPartner.legR.rotation.x = -.15;
     }
 }
 function animGuideReaction(t) {
     const ep = easeOutCubic(clamp(t/.45,0,1));
-    charGuide.rotation.y      = lerp(0,-.6,ep);
+    // Guide turns around to look at fallen partner (lerps from facing-away to facing ~right/camera)
+    charGuide.rotation.y      = lerp(Math.PI, 0.8, ep);
     charGuide.position.y      = lerp(charGuide.position.y,0,.15);
-    charGuide.armR.rotation.x = lerp(0,-.55,ep);
-    charGuide.armR.rotation.z = lerp(HOLD_GUIDE_RZ,-.35,ep);
+    // armL is the inner/holding arm when facing away; it rises and releases as guide reacts
+    charGuide.armL.rotation.x = lerp(0,-.55,ep);
+    charGuide.armL.rotation.z = lerp(-HOLD_GUIDE_RZ, 0.35, ep);
     charGuide.legL.rotation.x = 0; charGuide.legR.rotation.x = 0;
-    charGuide.armL.rotation.x = 0; charGuide.armL.rotation.z = 0;
+    charGuide.armR.rotation.x = 0; charGuide.armR.rotation.z = 0;
 }
 
 // ─────────────────────────────────────────────
